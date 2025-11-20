@@ -20,3 +20,31 @@ root@service.example.com   : ok=48   changed=25   unreachable=0    failed=0    s
 INFO[2025-11-20 10:49:39] Quay installed successfully, config data is stored in /mirror 
 INFO[2025-11-20 10:49:39] Quay is available at https://service.example.com:8443 with credentials (init, PXKJALn80x52iopZ6zy4NV97d1wuI3Gm) 
 ```
+Download the pull secret from Red hat and save as json
+```bash
+cat ~/pull-secret.txt | jq . > ~/pull-secret.json
+```
+Also save your registry credentials same pull-secret
+```bash
+podman login --authfile ~/pull-secret.json -u init -p PXKJALn80x52iopZ6zy4NV97d1wuI3Gm service.example.com:8443 --tls-verify=false
+```
+Copy registry certificate in anchors.
+```bash
+cp /mirror/quay-rootCA/rootCA.pem /etc/pki/ca-trust/source/anchors/
+cat /mirror/quay-config/ssl.cert >> /etc/pki/ca-trust/source/anchors/rootCA.pem
+update-ca-trust
+```
+Set below variables.
+```bash
+OCP_RELEASE=4.18.9
+LOCAL_REGISTRY='service.example.com:8443'
+PRODUCT_REPO='openshift-release-dev'
+LOCAL_SECRET_JSON='/root/pull-secret.json'
+RELEASE_NAME="ocp-release"
+ARCHITECTURE=x86_64
+LOCAL_REPOSITORY=ocp4/openshift4
+```
+Mirror the images
+```bash
+oc adm release mirror -a ${LOCAL_SECRET_JSON}       --from=quay.io/${PRODUCT_REPO}/${RELEASE_NAME}:${OCP_RELEASE}-${ARCHITECTURE}      --to=${LOCAL_REGISTRY}/${LOCAL_REPOSITORY}      --to-release-image=${LOCAL_REGISTRY}/${LOCAL_REPOSITORY}:${OCP_RELEASE}-${ARCHITECTURE} --dry-run
+```
